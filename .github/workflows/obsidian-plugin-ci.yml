@@ -80,7 +80,7 @@ jobs:
     name: Package Artifact
     runs-on: ubuntu-latest
     needs: [filter, test]
-    if: needs.filter.outputs.code == 'true'
+    if: needs.filter.outputs.code == 'true' && github.event_name != 'push'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -106,19 +106,32 @@ jobs:
   sonar:
     name: SonarQube
     needs: [filter, test]
-    if: inputs.skip-sonar == false && secrets.SONAR_TOKEN != '' && needs.filter.outputs.code == 'true'
+    if: inputs.skip-sonar == false && needs.filter.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
+      - name: Check for Sonar Token
+        id: check_token
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "SONAR_TOKEN is missing, skipping scan."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.check_token.outputs.skip != 'true'
         with:
           fetch-depth: 0
       - name: Download coverage
-        uses: actions/download-artifact@v4
+        if: steps.check_token.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
       - name: SonarQube Scan
+        if: steps.check_token.outputs.skip != 'true'
         uses: SonarSource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -128,7 +141,11 @@ jobs:
     name: Build and Release
     runs-on: ubuntu-latest
     needs: [filter, lint, test]
-    if: needs.filter.outputs.code == 'true'
+    if: needs.filter.outputs.code == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
