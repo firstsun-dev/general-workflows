@@ -79,15 +79,8 @@ jobs:
       - name: Run tests with coverage
         run: npm run test -- --coverage
         
-      - name: Debug on failure
-        if: failure()
-        run: |
-          echo "Listing node_modules/@vitest:"
-          ls -R node_modules/@vitest || echo "Not found"
-          echo "npm list @vitest/coverage-v8:"
-          npm list @vitest/coverage-v8 || echo "Not listed"
-
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -96,10 +89,7 @@ jobs:
   sonar:
     name: SonarQube
     needs: [filter, test]
-    if: |
-      inputs.skip-sonar == false &&
-      needs.filter.outputs.code == 'true' && 
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: inputs.skip-sonar == false && needs.filter.outputs.code == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -121,11 +111,7 @@ jobs:
     name: Package Artifact
     runs-on: ubuntu-latest
     needs: [filter, test]
-    if: |
-      always() && 
-      needs.filter.outputs.code == 'true' && 
-      needs.test.result == 'success' &&
-      (github.event_name == 'pull_request' || (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'))
+    if: needs.filter.outputs.code == 'true' && needs.test.result == 'success' && (github.event_name == 'pull_request' || (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -152,12 +138,7 @@ jobs:
     name: Build and Release
     runs-on: ubuntu-latest
     needs: [filter, lint, test]
-    if: |
-      needs.filter.outputs.code == 'true' && 
-      needs.lint.result == 'success' &&
-      needs.test.result == 'success' &&
-      github.event_name == 'push' && 
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: needs.filter.outputs.code == 'true' && needs.lint.result == 'success' && needs.test.result == 'success' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: write
       issues: write
@@ -184,8 +165,5 @@ jobs:
     needs: [filter, lint, test, sonar, artifact, release]
     steps:
       - name: Check for failures
-        if: |
-          contains(needs.*.result, 'failure') || 
-          contains(needs.*.result, 'cancelled') ||
-          (needs.filter.result == 'skipped')
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || (needs.filter.result == 'skipped')
         run: exit 1
