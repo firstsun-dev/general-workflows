@@ -6,9 +6,58 @@ on:
       plugin-id:
         required: true
         type: string
+      node-version:
+        required: false
+        type: string
+        default: "22"
 
 jobs:
-  test-reusable:
+  filter:
+    name: Check for Code Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'package.json'
+              - 'manifest.json'
+              - 'tsconfig.json'
+              - 'esbuild.config.mjs'
+              - 'eslint.config.*'
+              - 'vitest.config.ts'
+              - 'styles.css'
+
+  lint:
+    name: Lint
+    needs: filter
+    if: needs.filter.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Reusable workflow for ${{ inputs.plugin-id }} is working"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    name: Test
+    needs: filter
+    if: needs.filter.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Run tests with coverage
+        run: npm run test -- --coverage
