@@ -123,3 +123,27 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    needs: [filter, lint, test]
+    if: needs.filter.outputs.code == 'true'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        run: npx semantic-release
