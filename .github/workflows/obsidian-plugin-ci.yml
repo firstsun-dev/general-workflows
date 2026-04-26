@@ -106,7 +106,7 @@ jobs:
   sonar:
     name: SonarQube
     needs: [filter, test]
-    if: needs.filter.outputs.code == 'true'
+    if: inputs.skip-sonar == false && secrets.SONAR_TOKEN != '' && needs.filter.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
