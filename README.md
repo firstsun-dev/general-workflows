@@ -4,7 +4,7 @@ A repository for shared, reusable GitHub Actions workflows.
 
 ## Reusable Workflows
 
-### 1. Shared Obsidian Plugin CI (`plugin-ci.yml`)
+### 1. Shared Obsidian Plugin CI (`obsidian-plugin-ci.yml`)
 
 This workflow provides a standardized CI/CD pipeline for Obsidian plugins, including:
 - Change detection (filtering)
@@ -29,7 +29,7 @@ on:
 
 jobs:
   workflow-call:
-    uses: firstsun-dev/general-workflows/.github/workflows/plugin-ci.yml@main
+    uses: firstsun-dev/general-workflows/.github/workflows/obsidian-plugin-ci.yml@main
     with:
       plugin-id: "your-plugin-id"
       skip-sonar: false  # Set to true if you don't use SonarQube
