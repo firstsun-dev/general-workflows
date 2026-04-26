@@ -102,3 +102,48 @@ jobs:
           name: plugin-build-artifact-${{ github.sha }}
           path: ${{ env.ZIP_NAME }}
           retention-days: 7
+
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    needs: [filter, lint, test]
+    if: needs.filter.outputs.code == 'true' && github.event_name == 'push'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  sonar:
+    name: SonarQube
+    needs: [filter, test]
+    if: inputs.skip-sonar != true && needs.filter.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
