@@ -29,7 +29,7 @@ on:
 
 jobs:
   workflow-call:
-    uses: <your-username>/general-workflows/.github/workflows/plugin-ci.yml@main
+    uses: firstsun-dev/general-workflows/.github/workflows/plugin-ci.yml@main
     with:
       plugin-id: "your-plugin-id"
       skip-sonar: false  # Set to true if you don't use SonarQube

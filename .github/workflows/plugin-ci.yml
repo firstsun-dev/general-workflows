@@ -71,9 +71,22 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: 'npm'
       - run: npm ci
-      - run: npm run test -- --coverage
-      - id: version
+      
+      - name: Get version
+        id: version
         run: echo "version=$(node -p "require('./manifest.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Run tests with coverage
+        run: npm run test -- --coverage
+        
+      - name: Debug on failure
+        if: failure()
+        run: |
+          echo "Listing node_modules/@vitest:"
+          ls -R node_modules/@vitest || echo "Not found"
+          echo "npm list @vitest/coverage-v8:"
+          npm list @vitest/coverage-v8 || echo "Not listed"
+
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
@@ -94,7 +107,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Download coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/download-artifact@v4
         with:
           name: coverage-report
           path: coverage/
@@ -108,7 +121,11 @@ jobs:
     name: Package Artifact
     runs-on: ubuntu-latest
     needs: [filter, test]
-    if: needs.filter.outputs.code == 'true' && (github.event_name == 'pull_request' || (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'))
+    if: |
+      always() && 
+      needs.filter.outputs.code == 'true' && 
+      needs.test.result == 'success' &&
+      (github.event_name == 'pull_request' || (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,7 +152,12 @@ jobs:
     name: Build and Release
     runs-on: ubuntu-latest
     needs: [filter, lint, test]
-    if: needs.filter.outputs.code == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: |
+      needs.filter.outputs.code == 'true' && 
+      needs.lint.result == 'success' &&
+      needs.test.result == 'success' &&
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: write
       issues: write
